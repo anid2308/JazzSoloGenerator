@@ -140,3 +140,5 @@ model improvements
 evaluation metrics
 better preprocessing (quantization, swing, segmentation)
 
+## License
+MIT
