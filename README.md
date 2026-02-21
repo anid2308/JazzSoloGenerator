@@ -223,7 +223,7 @@ JazzSoloGenerator/
 
 - **data/raw/** — Put your source MIDI files here.
 - **data/processed/** — JSON and round-trip MIDI from `batch_parse.py` and `run_midi_pipeline.py`.
-- **data/soundfonts/** — Put a `.sf2` file here for `play_midi.py` (or set `FLUID_SOUNDFONT`).
+- **data/soundfonts/** — Put a `.sf2` file here for `play_midi.py` (or set `FLUID_SOUNDFONT`). `.sf2` files are not gitignored, so you can commit one (e.g. GeneralUser GS) to give clones working playback.
 
 **Preprocessing (optional):**
 
@@ -232,7 +232,7 @@ JazzSoloGenerator/
 - Single-file: set `INPUT_NAME` in `scripts/parse.py`, then run `python scripts/parse.py`.
 
 **Generation:** `python scripts/generate_solo.py` (see Full workflow above for checkpoint requirement).  
-**Playback:** `python scripts/play_midi.py [directory]` (see Full workflow for FluidSynth + SoundFont setup).
+**Playback:** `python scripts/play_midi.py [directory]` — e.g. `python scripts/play_midi.py outputs` to play generated MIDI. See Full workflow for FluidSynth + SoundFont setup.
 
 **Plot MIDI (piano roll):** `pip install pretty_midi matplotlib` then `python scripts/plot_midi.py [path]` (default: `outputs/`). Use `-o plot.png` to save (writes to `outputs/plots/` if you give only a filename).
 

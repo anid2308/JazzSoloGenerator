@@ -15,3 +15,8 @@ matplotlib>=3.5
 
 # Optional: run notebooks locally (notebook 7.x; "jupyter" metapackage is 1.x on PyPI)
 notebook
+
+# System deps (not pip): FluidSynth for play_midi.py — install separately:
+#   macOS: brew install fluidsynth
+#   Windows: choco install fluidsynth (or download from GitHub and add to PATH)
+#   SoundFont: put a .sf2 in data/soundfonts/ or set FLUID_SOUNDFONT
