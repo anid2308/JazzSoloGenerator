@@ -1,0 +1,17 @@
+# JazzSoloGenerator – install with: pip install -r requirements.txt
+
+# Notebook + model (JazzSoloGen_4.ipynb)
+torch>=2.0
+miditoolkit>=0.1.0
+tqdm
+numpy
+
+# Scripts (batch_parse.py, parse.py, corpus_example.py)
+music21>=9.0
+
+# Optional: plot MIDI (scripts/plot_midi.py)
+pretty_midi>=0.2.9
+matplotlib>=3.5
+
+# Optional: run notebooks locally (notebook 7.x; "jupyter" metapackage is 1.x on PyPI)
+notebook

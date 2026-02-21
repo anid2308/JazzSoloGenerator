@@ -1,15 +1,14 @@
-import os
 import json
-from music21 import converter, note, rest, harmony
+import os
+from music21 import converter, note, harmony
 
-midi_dir = 'data/raw_midis'
-output_dir = 'data/processed'
+from paths import PROCESSED_DIR, RAW_DIR
 
-os.makedirs(output_dir, exist_ok=True)
+os.makedirs(PROCESSED_DIR, exist_ok=True)
 
-for filename in os.listdir(midi_dir):
-    if filename.endswith('.mid'):
-        filepath = os.path.join(midi_dir, filename)
+for filename in sorted(os.listdir(RAW_DIR)):
+    if filename.lower().endswith((".mid", ".midi")):
+        filepath = os.path.join(RAW_DIR, filename)
         print(f"processing: {filename}")
 
         try:
@@ -18,7 +17,7 @@ for filename in os.listdir(midi_dir):
             chords = []
 
             for n in score.flatten().notesAndRests:
-                if isinstance(n, (note.Note, rest.Rest)):
+                if isinstance(n, (note.Note, note.Rest)):
                     entry = {
                         "type": "note" if isinstance(n, note.Note) else "rest",
                         "pitch": str(n.pitch) if isinstance(n, note.Note) else None,
@@ -42,8 +41,8 @@ for filename in os.listdir(midi_dir):
                 "chords": chords
             }        
 
-            output_filename = filename.replace('midi', 'json')
-            output_path = os.path.join(output_dir, output_filename)
+            output_filename = os.path.splitext(filename)[0] + ".json"
+            output_path = os.path.join(PROCESSED_DIR, output_filename)
 
             with open(output_path, 'w') as file:
                 json.dump(output_data, file, indent=2)
