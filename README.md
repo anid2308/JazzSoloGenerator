@@ -199,7 +199,8 @@ JazzSoloGenerator/
     processed/          # JSON and round-trip MIDI from scripts
     soundfonts/         # optional .sf2 for play_midi.py (FluidSynth)
   checkpoints/          # saved models
-  outputs/             # generated MIDI files
+  outputs/              # generated MIDI files
+    plots/              # saved plot images (e.g. plot_midi.py -o file.png)
   notebooks/           # Jupyter notebooks (e.g. JazzSoloGen_4.ipynb)
   src/
     data/
@@ -212,6 +213,7 @@ JazzSoloGenerator/
     midi_tokenizer.py   # MIDI ↔ token sequence (BAR/POS/NOTE/DUR/REST)
     run_midi_pipeline.py  # tokenize data/raw, write tokens + round-trip MIDI
     play_midi.py        # play .mid in a dir (FluidSynth; .sf2 in data/soundfonts/)
+    plot_midi.py        # plot MIDI as piano roll (pretty_midi + matplotlib)
     generate_solo.py    # generate new solo MIDI from checkpoint (train in notebook first)
     corpus_example.py   # music21 corpus demo
   requirements.txt
@@ -231,6 +233,8 @@ JazzSoloGenerator/
 
 **Generation:** `python scripts/generate_solo.py` (see Full workflow above for checkpoint requirement).  
 **Playback:** `python scripts/play_midi.py [directory]` (see Full workflow for FluidSynth + SoundFont setup).
+
+**Plot MIDI (piano roll):** `pip install pretty_midi matplotlib` then `python scripts/plot_midi.py [path]` (default: `outputs/`). Use `-o plot.png` to save (writes to `outputs/plots/` if you give only a filename).
 
 ## Known Issues
 
