@@ -1,9 +1,11 @@
 import os
 import json
-from music21 import converter, note, rest, harmony
+from music21 import converter, note, harmony
 
-midi_dir = 'data/raw_midis'
-output_dir = 'data/processed'
+#optimizing proj paths for more flexible recalls
+_PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+midi_dir = os.path.join(_PROJECT_ROOT, "data", "raw")
+output_dir = os.path.join(_PROJECT_ROOT, "data", "processed")
 
 os.makedirs(output_dir, exist_ok=True)
 
@@ -18,7 +20,7 @@ for filename in os.listdir(midi_dir):
             chords = []
 
             for n in score.flatten().notesAndRests:
-                if isinstance(n, (note.Note, rest.Rest)):
+                if isinstance(n, (note.Note, note.Rest)):
                     entry = {
                         "type": "note" if isinstance(n, note.Note) else "rest",
                         "pitch": str(n.pitch) if isinstance(n, note.Note) else None,
@@ -42,7 +44,7 @@ for filename in os.listdir(midi_dir):
                 "chords": chords
             }        
 
-            output_filename = filename.replace('midi', 'json')
+            output_filename = filename.replace('.mid', '.json')
             output_path = os.path.join(output_dir, output_filename)
 
             with open(output_path, 'w') as file:
