@@ -1,17 +1,14 @@
-import os
 import json
+import os
 from music21 import converter, note, harmony
 
-#optimizing proj paths for more flexible recalls
-_PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-midi_dir = os.path.join(_PROJECT_ROOT, "data", "raw")
-output_dir = os.path.join(_PROJECT_ROOT, "data", "processed")
+from paths import PROCESSED_DIR, RAW_DIR
 
-os.makedirs(output_dir, exist_ok=True)
+os.makedirs(PROCESSED_DIR, exist_ok=True)
 
-for filename in os.listdir(midi_dir):
-    if filename.endswith('.mid'):
-        filepath = os.path.join(midi_dir, filename)
+for filename in sorted(os.listdir(RAW_DIR)):
+    if filename.lower().endswith((".mid", ".midi")):
+        filepath = os.path.join(RAW_DIR, filename)
         print(f"processing: {filename}")
 
         try:
@@ -44,8 +41,8 @@ for filename in os.listdir(midi_dir):
                 "chords": chords
             }        
 
-            output_filename = filename.replace('.mid', '.json')
-            output_path = os.path.join(output_dir, output_filename)
+            output_filename = os.path.splitext(filename)[0] + ".json"
+            output_path = os.path.join(PROCESSED_DIR, output_filename)
 
             with open(output_path, 'w') as file:
                 json.dump(output_data, file, indent=2)

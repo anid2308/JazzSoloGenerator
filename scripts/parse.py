@@ -1,12 +1,12 @@
+"""Parse a single MIDI file to JSON (pitch, midi, duration). Edit INPUT_NAME below and run."""
 import json
 import os
 from music21 import converter
 
-_PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-RAW_DIR = os.path.join(_PROJECT_ROOT, "data", "raw")
-PROCESSED_DIR = os.path.join(_PROJECT_ROOT, "data", "processed")
+from paths import PROCESSED_DIR, RAW_DIR
 
-score = converter.parse(os.path.join(RAW_DIR, "autumn_leaves_chet_baker.mid"))
+INPUT_NAME = "autumn_leaves_chet_baker.mid"
+score = converter.parse(os.path.join(RAW_DIR, INPUT_NAME))
 
 
 sequence = []
@@ -21,5 +21,7 @@ for n in score.flatten().notes:
         sequence.append(note_data)
 
 os.makedirs(PROCESSED_DIR, exist_ok=True)
-with open(os.path.join(PROCESSED_DIR, "AL_chet_baker_solo.json"), "w") as file:
-    json.dump(sequence, file)
+out_name = os.path.splitext(INPUT_NAME)[0] + "_solo.json"
+with open(os.path.join(PROCESSED_DIR, out_name), "w") as f:
+    json.dump(sequence, f)
+print("Wrote", out_name)

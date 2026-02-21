@@ -1,22 +1,15 @@
 #!/usr/bin/env python3
 """
 Test run: MIDI → tokens → (optional) round-trip MIDI.
-Uses data/raw for input and data/processed for output.
-Extracted from notebooks/JazzSoloGen_4.ipynb so you can run locally and see what happens.
+Reads from data/raw, writes tokens JSON and round-trip MIDI to data/processed.
 """
 from collections import defaultdict
+import glob
 import json
 import os
 import sys
 
-_PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-RAW_DIR = os.path.join(_PROJECT_ROOT, "data", "raw")
-PROCESSED_DIR = os.path.join(_PROJECT_ROOT, "data", "processed")
-
-# So we can import midi_tokenizer when run as python scripts/run_midi_pipeline.py
-_SCRIPTS_DIR = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, _SCRIPTS_DIR)
-
+from paths import PROCESSED_DIR, RAW_DIR
 from midi_tokenizer import (
     STEPS_PER_BEAT,
     clean_to_monophonic,
@@ -56,12 +49,9 @@ def max_simultaneous_notes(notes):
 
 def gather_midi_paths():
     os.makedirs(RAW_DIR, exist_ok=True)
-    paths = sorted(
-        __import__("glob").glob(os.path.join(RAW_DIR, "**/*.mid"), recursive=True)
-    ) + sorted(
-        __import__("glob").glob(os.path.join(RAW_DIR, "**/*.midi"), recursive=True)
+    return sorted(glob.glob(os.path.join(RAW_DIR, "**/*.mid"), recursive=True)) + sorted(
+        glob.glob(os.path.join(RAW_DIR, "**/*.midi"), recursive=True)
     )
-    return paths
 
 
 def create_test_midi():
