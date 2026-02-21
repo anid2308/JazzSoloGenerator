@@ -70,6 +70,16 @@ def build_type_masks(vocab, stoi, device):
     return masks
 
 
+def build_pitch_range_mask(vocab, stoi, device, pitch_min: int, pitch_max: int):
+    """Mask that is True only for NOTE tokens in [pitch_min, pitch_max] (MIDI)."""
+    mask = torch.zeros(len(vocab), dtype=torch.bool, device=device)
+    for p in range(max(0, pitch_min), min(128, pitch_max + 1)):
+        tok = f"NOTE_{p}"
+        if tok in stoi:
+            mask[stoi[tok]] = True
+    return mask
+
+
 def topk_sample(logits, k=20, temperature=0.9):
     logits = logits / max(temperature, 1e-6)
     if k is not None and k < logits.numel():
@@ -79,12 +89,15 @@ def topk_sample(logits, k=20, temperature=0.9):
     return torch.multinomial(probs, 1).item()
 
 
-def generate_tokens(model, stoi, itos, masks, block_size, device, max_new_tokens=1200, temperature=0.9, top_k=20):
+def generate_tokens(model, stoi, itos, masks, block_size, device, pitch_range_mask=None,
+                    max_new_tokens=1200, temperature=0.9, top_k=20):
+    # Restrict notes to pitch_range_mask (e.g. trumpet range) when given
+    note_allow = masks["NOTE"] if pitch_range_mask is None else (masks["NOTE"] & pitch_range_mask)
     allowed_by_prev = {
         "BOS":  (masks["BAR"] | masks["POS"]),
         "BAR":  (masks["REST"] | masks["POS"]),
         "REST": (masks["REST"] | masks["BAR"] | masks["POS"]),
-        "POS":  masks["NOTE"],
+        "POS":  note_allow,
         "NOTE": masks["DUR"],
         "DUR":  (masks["REST"] | masks["BAR"] | masks["POS"] | masks["EOS"]),
     }
@@ -119,6 +132,10 @@ def main():
     parser.add_argument("--top_k", type=int, default=20, help="Top-k sampling")
     parser.add_argument("--tempo", type=int, default=140, help="MIDI tempo")
     parser.add_argument("--seed", type=int, default=None, help="Random seed")
+    parser.add_argument("--pitch-min", type=int, default=54,
+                        help="Minimum MIDI pitch (default 54 = F#3)")
+    parser.add_argument("--pitch-max", type=int, default=84,
+                        help="Maximum MIDI pitch (default 84 = C6)")
     args = parser.parse_args()
 
     if not os.path.isfile(args.checkpoint):
@@ -141,11 +158,17 @@ def main():
     model = GPTMini(vocab_size, max_len=block_size + 2).to(device)
     model.load_state_dict(ckpt["model"])
     masks = build_type_masks(vocab, stoi, device)
+    pitch_range_mask = None
+    if args.pitch_min > 0 or args.pitch_max < 127:
+        pitch_range_mask = build_pitch_range_mask(vocab, stoi, device, args.pitch_min, args.pitch_max)
+        if pitch_range_mask.any():
+            print(f"Pitch range: MIDI {args.pitch_min}–{args.pitch_max} (F#3–C6)")
 
     os.makedirs(args.out_dir, exist_ok=True)
     for i in range(args.num):
         tokens = generate_tokens(
             model, stoi, itos, masks, block_size, device,
+            pitch_range_mask=pitch_range_mask,
             max_new_tokens=args.max_tokens, temperature=args.temperature, top_k=args.top_k,
         )
         out_name = f"solo_{i + 1:03d}.mid"

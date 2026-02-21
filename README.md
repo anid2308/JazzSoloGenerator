@@ -231,10 +231,16 @@ JazzSoloGenerator/
 - `python scripts/run_midi_pipeline.py` — Tokenize MIDI, write tokens JSON and a round-trip MIDI.
 - Single-file: set `INPUT_NAME` in `scripts/parse.py`, then run `python scripts/parse.py`.
 
-**Generation:** `python scripts/generate_solo.py` (see Full workflow above for checkpoint requirement).  
+**Generation:** `python scripts/generate_solo.py` (see Full workflow above for checkpoint requirement). By default, notes are limited to **F#3–C6** (MIDI 54–84). To change or disable: `--pitch-min 0 --pitch-max 127` (full range), or e.g. `--pitch-min 48 --pitch-max 84` for a different instrument.  
 **Playback:** `python scripts/play_midi.py [directory]` — e.g. `python scripts/play_midi.py outputs` to play generated MIDI. See Full workflow for FluidSynth + SoundFont setup.
 
 **Plot MIDI (piano roll):** `pip install pretty_midi matplotlib` then `python scripts/plot_midi.py [path]` (default: `outputs/`). Use `-o plot.png` to save (writes to `outputs/plots/` if you give only a filename).
+
+## Improving the model
+
+**Trumpet range (done)** — Generated notes are clamped to **F#3–C6** (MIDI 54–84) by default. Use `--pitch-min 0 --pitch-max 127` for full range, or e.g. `--pitch-min 48 --pitch-max 84` for another instrument.
+
+**Other ideas:** Penalize big interval leaps at sampling or in training; add top-p / repetition penalty; more training data; phrase or chord conditioning (notebook + retrain). See Roadmap below.
 
 ## Known Issues
 
@@ -244,9 +250,7 @@ Phrasing lacks direction (no “sentence-like” contour yet)
 
 ## Roadmap (high-impact fixes)
 
-1. Constrain pitch/register (fast win)
-hard clamp generation to an instrument range (e.g., trumpet range)
-soft penalty for notes outside a learned “comfort band”
+1. ~~Constrain pitch/register~~ — **Done:** `generate_solo.py` uses `--pitch-min` / `--pitch-max` (default F#3–C6, 54–84).
 2. Penalize huge leaps
 add an interval jump penalty at sampling time
 or bake it into training with an auxiliary loss / feature
