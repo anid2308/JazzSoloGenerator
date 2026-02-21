@@ -21,5 +21,4 @@ CHANGELOG_LOCAL.md
 # Cursor (do not commit)
 .cursor/
 
-# SoundFonts (large binaries; put .sf2 in data/soundfonts/ for play_midi.py)
-data/soundfonts/*.sf2
+# SoundFonts: .sf2 in data/soundfonts/ are allowed (optional; add one for play_midi.py)
