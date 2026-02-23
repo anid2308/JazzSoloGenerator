@@ -80,16 +80,28 @@ def play_with_fluidsynth(midi_path: str, soundfont: str) -> bool:
         return False
 
 
+def get_midis_from_path(path: str) -> List[str]:
+    """Return list of MIDI file paths: one if path is a .mid/.midi file, else all in directory."""
+    path = os.path.abspath(os.path.expanduser(path.strip()))
+    if os.path.isfile(path):
+        if path.lower().endswith((".mid", ".midi")):
+            return [path]
+        return []
+    if os.path.isdir(path):
+        return find_midis(path)
+    return []
+
+
 def main():
     parser = argparse.ArgumentParser(
-        description="Play MIDI files in a directory using FluidSynth.",
+        description="Play MIDI files in a directory (or a single file) using FluidSynth.",
         epilog="Install FluidSynth (macOS: brew install fluidsynth; Windows: choco install fluidsynth). Need a .sf2 in data/soundfonts/ or set FLUID_SOUNDFONT.",
     )
     parser.add_argument(
-        "directory",
+        "path",
         nargs="?",
-        default=PROCESSED_DIR,
-        help="Directory containing .mid/.midi files (default: data/processed)",
+        default=None,
+        help="Directory or path to a .mid/.midi file. If omitted, you will be prompted.",
     )
     parser.add_argument(
         "-s", "--soundfont",
@@ -103,6 +115,17 @@ def main():
     )
     args = parser.parse_args()
 
+    path = args.path
+    if path is None:
+        try:
+            path = input("Path to directory or MIDI file: ").strip()
+        except (EOFError, KeyboardInterrupt):
+            print(file=sys.stderr)
+            sys.exit(0)
+        if not path:
+            print("No path entered.", file=sys.stderr)
+            sys.exit(1)
+
     soundfont = find_soundfont(args.soundfont)
     if not soundfont and not args.dry_run:
         print("No SoundFont found.", file=sys.stderr)
@@ -110,12 +133,12 @@ def main():
         print("  Free SoundFonts: https://github.com/FluidSynth/fluidsynth/wiki/SoundFont", file=sys.stderr)
         sys.exit(1)
 
-    midis = find_midis(args.directory)
+    midis = get_midis_from_path(path)
     if not midis:
-        print(f"No .mid/.midi files in {os.path.abspath(args.directory)}", file=sys.stderr)
+        print(f"No .mid/.midi file(s) at {os.path.abspath(path)}", file=sys.stderr)
         sys.exit(1)
 
-    print(f"Found {len(midis)} MIDI file(s) in {os.path.abspath(args.directory)}")
+    print(f"Found {len(midis)} MIDI file(s)")
     if args.dry_run:
         for p in midis:
             print(" ", os.path.basename(p))

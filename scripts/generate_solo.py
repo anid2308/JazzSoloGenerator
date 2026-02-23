@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 """
 Generate a new jazz solo from a trained checkpoint.
+
 Requires a checkpoint saved from the notebook (e.g. train in Colab, download best.pt to checkpoints/).
+Optional: --chords-midi PATH uses chord_utils to restrict notes to chord/scale tones per bar.
 """
 import argparse
 import os
@@ -9,6 +11,7 @@ import sys
 
 from paths import CHECKPOINTS_DIR, OUTPUTS_DIR
 from midi_tokenizer import PAD, BOS, EOS, STEPS_PER_BEAT, tokens_to_midi
+from chord_utils import get_chords_from_midi, allowed_midi_pitches_for_chord
 
 import torch
 import torch.nn as nn
@@ -79,7 +82,24 @@ def topk_sample(logits, k=20, temperature=0.9):
     return torch.multinomial(probs, 1).item()
 
 
-def generate_tokens(model, stoi, itos, masks, block_size, device, max_new_tokens=1200, temperature=0.9, top_k=20):
+def generate_tokens(
+    model,
+    stoi,
+    itos,
+    masks,
+    block_size,
+    device,
+    max_new_tokens=1200,
+    temperature=0.9,
+    top_k=20,
+    chord_per_bar=None,
+    pitch_min=54,
+    pitch_max=84,
+):
+    """
+    chord_per_bar: optional dict bar_index -> chord_figure. When set, NOTE sampling
+    is restricted to chord/scale tones for the current bar.
+    """
     allowed_by_prev = {
         "BOS":  (masks["BAR"] | masks["POS"]),
         "BAR":  (masks["REST"] | masks["POS"]),
@@ -91,6 +111,7 @@ def generate_tokens(model, stoi, itos, masks, block_size, device, max_new_tokens
     model.eval()
     ids = [stoi[BOS]]
     prev_type = "BOS"
+    current_bar = 0
     with torch.no_grad():
         for _ in range(max_new_tokens):
             x = torch.tensor(ids[-(block_size + 1):], device=device).unsqueeze(0)
@@ -98,6 +119,20 @@ def generate_tokens(model, stoi, itos, masks, block_size, device, max_new_tokens
             allowed = allowed_by_prev.get(
                 prev_type, (masks["REST"] | masks["POS"] | masks["BAR"] | masks["EOS"])
             )
+            # Chord-guided note sampling: when about to emit a NOTE, restrict to chord tones
+            if prev_type == "POS" and chord_per_bar is not None and current_bar in chord_per_bar:
+                chord_fig = chord_per_bar[current_bar]
+                allowed_pitches = allowed_midi_pitches_for_chord(
+                    chord_fig, pitch_min=pitch_min, pitch_max=pitch_max, include_scale=True
+                )
+                chord_note_mask = torch.zeros_like(allowed, dtype=torch.bool, device=device)
+                for p in allowed_pitches:
+                    key = f"NOTE_{p}"
+                    if key in stoi:
+                        chord_note_mask[stoi[key]] = True
+                allowed = allowed & chord_note_mask
+                if not allowed.any():
+                    allowed = allowed_by_prev["POS"]  # fallback if no overlap
             logits = logits.masked_fill(~allowed, -1e9)
             nxt = topk_sample(logits, k=top_k, temperature=temperature)
             ids.append(nxt)
@@ -105,6 +140,8 @@ def generate_tokens(model, stoi, itos, masks, block_size, device, max_new_tokens
             if tok == EOS:
                 break
             prev_type = "BAR" if tok == "BAR" else tok.split("_")[0]
+            if tok == "BAR":
+                current_bar += 1
     return [itos[i] for i in ids]
 
 
@@ -119,6 +156,14 @@ def main():
     parser.add_argument("--top_k", type=int, default=20, help="Top-k sampling")
     parser.add_argument("--tempo", type=int, default=140, help="MIDI tempo")
     parser.add_argument("--seed", type=int, default=None, help="Random seed")
+    parser.add_argument(
+        "--chords-midi",
+        default=None,
+        metavar="PATH",
+        help="MIDI file with chord symbols; generated notes are restricted to chord/scale tones per bar",
+    )
+    parser.add_argument("--pitch-min", type=int, default=54, help="Min MIDI pitch (default 54 = F#3 trumpet)")
+    parser.add_argument("--pitch-max", type=int, default=84, help="Max MIDI pitch (default 84 = C6 trumpet)")
     args = parser.parse_args()
 
     if not os.path.isfile(args.checkpoint):
@@ -142,11 +187,27 @@ def main():
     model.load_state_dict(ckpt["model"])
     masks = build_type_masks(vocab, stoi, device)
 
+    chord_per_bar = None
+    if args.chords_midi:
+        if not os.path.isfile(args.chords_midi):
+            print(f"Chords MIDI not found: {args.chords_midi}", file=sys.stderr)
+            sys.exit(1)
+        chord_list = get_chords_from_midi(args.chords_midi)
+        if not chord_list:
+            print("Warning: no chord symbols found in", args.chords_midi, "- generating without chord conditioning", file=sys.stderr)
+        else:
+            chord_per_bar = {bar: fig for bar, fig in chord_list}
+            print("Chord conditioning: {} chords over {} bars from {}".format(
+                len(chord_per_bar), max(chord_per_bar.keys()) + 1, os.path.basename(args.chords_midi)))
+
     os.makedirs(args.out_dir, exist_ok=True)
     for i in range(args.num):
         tokens = generate_tokens(
             model, stoi, itos, masks, block_size, device,
             max_new_tokens=args.max_tokens, temperature=args.temperature, top_k=args.top_k,
+            chord_per_bar=chord_per_bar,
+            pitch_min=args.pitch_min,
+            pitch_max=args.pitch_max,
         )
         out_name = f"solo_{i + 1:03d}.mid"
         out_path = os.path.join(args.out_dir, out_name)

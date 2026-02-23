@@ -134,6 +134,20 @@ python scripts/generate_solo.py -n 3
 python scripts/generate_solo.py --temperature 0.85 --top_k 15
 ```
 
+**Chord-conditioned generation (runs over a progression):** Provide any MIDI that represents backing chords (chart with symbols, markers, or a track where someone plays the chords). Generated notes are restricted to chord/scale tones for each bar:
+
+```bash
+python scripts/generate_solo.py --chords-midi path/to/backing_chords.mid -o outputs
+```
+
+**Test chord progressions:** Generate three playable chord MIDIs (diatonic, ii–V–I, more complex), then generate a solo over one:
+
+```bash
+python scripts/generate_chord_midi.py
+python scripts/play_midi.py data/raw/chord_progressions/01_diatonic_simple_C_F_G_Am.mid   # hear the backing
+python scripts/generate_solo.py --chords-midi data/raw/chord_progressions/01_diatonic_simple_C_F_G_Am.mid -o outputs
+```
+
 ### 4. Play the MIDI
 
 Playback uses [FluidSynth](https://github.com/FluidSynth/fluidsynth) and a SoundFont (`.sf2`).
@@ -191,11 +205,41 @@ If that plays sound, run `python scripts/play_midi.py outputs` again from that s
 
 ---
 
+## Chords-to-runs (chord-conditioned generation)
+
+Generate solos that follow a chord progression: give the model **any** MIDI that represents backing chords, and note sampling is restricted to chord/scale tones per bar.
+
+**What counts as “backing chords” MIDI**
+
+- **Chord symbols** in notation-style MIDI (music21)
+- **Markers** with chord names (e.g. files from `generate_chord_midi.py`)
+- **Played chord notes** (e.g. piano comping): the script infers the chord per bar from the notes
+
+So you can use a chart export, our generated progressions, or any MIDI where someone is playing the changes.
+
+**Files and directories**
+
+| Item | Purpose |
+|------|--------|
+| `scripts/chord_utils.py` | Extract chords from MIDI (symbols, markers, or infer from notes); chord symbol → allowed pitches. |
+| `scripts/generate_solo.py` | Generation; `--chords-midi PATH` enables chord conditioning. |
+| `scripts/generate_chord_midi.py` | Create 3 playable chord-progression MIDIs (with markers + chord notes). |
+| `scripts/paths.py` | Defines `CHORD_PROGRESSIONS_DIR` = `data/raw/chord_progressions`. |
+| `data/raw/chord_progressions/` | Chord-progression MIDI files (output of `generate_chord_midi.py`, input to `--chords-midi`). |
+
+**Workflow**
+
+1. (Optional) Create test chord MIDIs: `python scripts/generate_chord_midi.py` → writes playable `01_diatonic_simple_C_F_G_Am.mid`, etc. into `data/raw/chord_progressions/`. You can play them with `python scripts/play_midi.py data/raw/chord_progressions/01_diatonic_simple_C_F_G_Am.mid`.
+2. Generate a solo over a progression: `python scripts/generate_solo.py --chords-midi data/raw/chord_progressions/01_diatonic_simple_C_F_G_Am.mid -o outputs` (or use any other backing-chord MIDI path).
+
+---
+
 ## Project Layout
 
 JazzSoloGenerator/
   data/
     raw/                # source MIDI files
+      chord_progressions/  # chord-progression MIDI for --chords-midi (generate_chord_midi.py)
     processed/          # JSON and round-trip MIDI from scripts
     soundfonts/         # optional .sf2 for play_midi.py (FluidSynth)
   checkpoints/          # saved models
@@ -207,14 +251,16 @@ JazzSoloGenerator/
     models/
     utils/
   scripts/
-    paths.py            # shared RAW_DIR, PROCESSED_DIR, SOUNDFONTS_DIR
+    paths.py            # shared paths (RAW_DIR, CHORD_PROGRESSIONS_DIR, OUTPUTS_DIR, …)
+    chord_utils.py      # chord extraction from MIDI; chord → allowed pitches
+    midi_tokenizer.py   # MIDI ↔ token sequence (BAR/POS/NOTE/DUR/REST)
+    generate_solo.py    # generate solo MIDI; optional --chords-midi for chord conditioning
+    generate_chord_midi.py  # generate 3 chord-progression MIDIs for testing
     parse.py            # single-file MIDI → JSON (edit INPUT_NAME)
     batch_parse.py      # batch MIDI → JSON (events + chords)
-    midi_tokenizer.py   # MIDI ↔ token sequence (BAR/POS/NOTE/DUR/REST)
-    run_midi_pipeline.py  # tokenize data/raw, write tokens + round-trip MIDI
+    run_midi_pipeline.py   # tokenize data/raw, write tokens + round-trip MIDI
     play_midi.py        # play .mid in a dir (FluidSynth; .sf2 in data/soundfonts/)
     plot_midi.py        # plot MIDI as piano roll (pretty_midi + matplotlib)
-    generate_solo.py    # generate new solo MIDI from checkpoint (train in notebook first)
     corpus_example.py   # music21 corpus demo
   requirements.txt
   README.md
@@ -223,6 +269,7 @@ JazzSoloGenerator/
 
 - **data/raw/** — Put your source MIDI files here.
 - **data/processed/** — JSON and round-trip MIDI from `batch_parse.py` and `run_midi_pipeline.py`.
+- **data/raw/chord_progressions/** — Chord-progression MIDI files (from `generate_chord_midi.py`) for testing chord-conditioned generation.
 - **data/soundfonts/** — Put a `.sf2` file here for `play_midi.py` (or set `FLUID_SOUNDFONT`). `.sf2` files are not gitignored, so you can commit one (e.g. GeneralUser GS) to give clones working playback.
 
 **Preprocessing (optional):**
